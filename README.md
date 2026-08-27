@@ -22,16 +22,6 @@ zoreal/oauth2 (this package)   your backend: exchange, verify, userinfo
 composer require zoreal/oauth2
 ```
 
-Until the package is on Packagist, add the VCS repository first:
-
-```json
-{
-  "repositories": [
-    { "type": "vcs", "url": "https://github.com/Bynn-Intelligence/zoreal-oauth2-php" }
-  ]
-}
-```
-
 PHP >= 8.1 with ext-curl, ext-json and ext-openssl. One dependency:
 `firebase/php-jwt`.
 
