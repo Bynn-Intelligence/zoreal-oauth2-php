@@ -66,6 +66,29 @@ final class Login
     }
 
     /**
+     * A fresh liveness capture backed this login. The convenience spelling
+     * of acr() === 'zoreal.live'; for enforcement, pass $acr to authenticate
+     * and let verification refuse the token instead of checking after.
+     */
+    public function live(): bool
+    {
+        return $this->acr() === 'zoreal.live';
+    }
+
+    /**
+     * Equal or stronger satisfies, on the client's ordering
+     * (session < device < live). Unknown values satisfy nothing.
+     */
+    public function satisfiesAcr(string $required): bool
+    {
+        $actual = $this->acr();
+        $actualRank = $actual !== null ? (Client::ACR_ORDER[$actual] ?? null) : null;
+        $requiredRank = Client::ACR_ORDER[$required] ?? null;
+
+        return $actualRank !== null && $requiredRank !== null && $actualRank >= $requiredRank;
+    }
+
+    /**
      * @return list<string>|null
      */
     public function amr(): ?array

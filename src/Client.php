@@ -38,6 +38,19 @@ final class Client
      */
     public const JWKS_TTL = 600;
 
+    /**
+     * The assurance vocabulary, weakest to strongest. Verification accepts
+     * equal or stronger: an RP requiring zoreal.device is satisfied by a
+     * zoreal.live token, never the reverse.
+     *
+     * @var array<string, int>
+     */
+    public const ACR_ORDER = [
+        'zoreal.session' => 0,
+        'zoreal.device' => 1,
+        'zoreal.live' => 2,
+    ];
+
     private const JWKS_CACHE_PREFIX = 'zoreal_oauth2_jwks:';
 
     public readonly string $clientId;
@@ -94,15 +107,23 @@ final class Client
     /**
      * The whole login, in order: exchange the code (with the PKCE verifier
      * the browser SDK handed over), verify the ID token against the JWKS,
-     * check the nonce when the caller has it. Returns a Login; personal data
-     * is NOT fetched here, because the ID token never carries it and not
-     * every caller wants it -- Login::userinfo() fetches on first use.
+     * check the nonce when the caller has it, and -- when the caller passes
+     * $acr -- refuse a token whose assurance is below it. Returns a Login;
+     * personal data is NOT fetched here, because the ID token never carries
+     * it and not every caller wants it -- Login::userinfo() fetches on first
+     * use.
+     *
+     * REQUESTING an assurance on the wire (the SDK's acr_values) is
+     * advisory; the signed acr claim is the proof, and this parameter is
+     * where a relying party that asked for a liveness check verifies it
+     * actually happened. An RP that requires zoreal.live and never passes
+     * $acr here has checked nothing.
      */
-    public function authenticate(string $code, string $codeVerifier, ?string $nonce = null): Login
+    public function authenticate(string $code, string $codeVerifier, ?string $nonce = null, ?string $acr = null): Login
     {
         $tokens = $this->exchange($code, $codeVerifier);
         $idToken = (string) $tokens['id_token'];
-        $claims = $this->verifyIdToken($idToken, $nonce);
+        $claims = $this->verifyIdToken($idToken, $nonce, $acr);
 
         $accessToken = $tokens['access_token'] ?? null;
         $scope = $tokens['scope'] ?? null;
@@ -176,16 +197,17 @@ final class Client
 
     /**
      * ES256 against the provider's JWKS, plus iss (exact string equality
-     * with the configured issuer), aud, exp and -- when the caller passes
-     * the nonce the SDK generated -- the nonce binding. Returns the claims.
-     * There is no RS256 fallback on purpose: ZOREAL signs nothing with RSA,
-     * and accepting a second algorithm is how algorithm confusion starts.
-     * An unknown kid invalidates the cached JWKS and refetches once, which
-     * is how a key rotation is absorbed without a restart.
+     * with the configured issuer), aud, exp, the nonce binding when the
+     * caller passes the nonce the SDK generated, and the assurance floor
+     * when the caller passes $acr. Returns the claims. There is no RS256
+     * fallback on purpose: ZOREAL signs nothing with RSA, and accepting a
+     * second algorithm is how algorithm confusion starts. An unknown kid
+     * invalidates the cached JWKS and refetches once, which is how a key
+     * rotation is absorbed without a restart.
      *
      * @return array<string, mixed>
      */
-    public function verifyIdToken(string $idToken, ?string $nonce = null): array
+    public function verifyIdToken(string $idToken, ?string $nonce = null, ?string $acr = null): array
     {
         $header = $this->decodeHeader($idToken);
         $alg = $header['alg'] ?? null;
@@ -218,6 +240,9 @@ final class Client
         }
         if ($nonce !== null && $nonce !== '' && ($claims['nonce'] ?? null) !== $nonce) {
             throw new VerificationError('the ID token nonce is not the one this login started with');
+        }
+        if ($acr !== null && $acr !== '') {
+            $this->verifyAcr($claims, $acr);
         }
 
         return $claims;
@@ -256,6 +281,33 @@ final class Client
         }
 
         return $body;
+    }
+
+    /**
+     * Equal or stronger satisfies; anything else -- weaker, missing, or a
+     * value outside the vocabulary -- is refused. An unknown REQUIREMENT is
+     * a caller bug and says so plainly rather than failing every login.
+     *
+     * @param array<string, mixed> $claims
+     */
+    private function verifyAcr(array $claims, string $required): void
+    {
+        $requiredRank = self::ACR_ORDER[$required] ?? null;
+        if ($requiredRank === null) {
+            throw new ConfigurationError(
+                'unknown required acr ' . $required . '; supported: ' . implode(', ', array_keys(self::ACR_ORDER))
+            );
+        }
+
+        $actual = $claims['acr'] ?? null;
+        $actualRank = is_string($actual) ? (self::ACR_ORDER[$actual] ?? null) : null;
+        if ($actualRank !== null && $actualRank >= $requiredRank) {
+            return;
+        }
+
+        throw new VerificationError(
+            'the ID token says acr ' . json_encode($actual) . ', below the required ' . $required
+        );
     }
 
     /**
