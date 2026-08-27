@@ -1,6 +1,6 @@
 # zoreal/oauth2
 
-[![Packagist Version](https://img.shields.io/packagist/v/zoreal/oauth2)](https://packagist.org/packages/zoreal/oauth2) [![PHP Version](https://img.shields.io/packagist/php-v/zoreal/oauth2)](https://packagist.org/packages/zoreal/oauth2) [![CI](https://img.shields.io/github/actions/workflow/status/Bynn-Intelligence/zoreal-oauth2-php/ci.yml?branch=main&label=CI)](https://github.com/Bynn-Intelligence/zoreal-oauth2-php/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![Packagist Version](https://img.shields.io/packagist/v/zoreal/oauth2)](https://packagist.org/packages/zoreal/oauth2) [![PHP Version](https://img.shields.io/packagist/php-v/zoreal/oauth2)](https://packagist.org/packages/zoreal/oauth2) [![CI](https://img.shields.io/github/actions/workflow/status/Bynn-Intelligence/zoreal-oauth2-php/ci.yml?branch=main&label=CI)](https://github.com/Bynn-Intelligence/zoreal-oauth2-php/actions/workflows/ci.yml) [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/Bynn-Intelligence/zoreal-oauth2-php/badge)](https://scorecard.dev/viewer/?uri=github.com/Bynn-Intelligence/zoreal-oauth2-php) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
 Login with ZOREAL for PHP backends: the relying-party half of the flow that
 [`@zoreal/oauth2-react`](https://github.com/Bynn-Intelligence/zoreal-oauth2-react)
